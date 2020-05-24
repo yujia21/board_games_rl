@@ -10,19 +10,25 @@ logger.setLevel(logging.INFO)
 
 class CantStopMultiplayer(gym.Env):
     """
+    Can't Stop is a two phased multiplayer game.
+    Each turn per player comprises of:
+    Phase 0: player chooses to stop or continue.
+    Phase 1: player chooses a dice pair.
+
+
     Actions on each turn is:
-    - Choose which die pair
+    - Choose to stop or continue (if phase 0)
+    - Choose which die pair (if phase 1)
 
     Observation:
-    - Current board status
-    - Die roll
+    - Current phase
+    - Dice pairs
+    - Current board status (starting w current player)
 
     Rewards:
-    - Either -1 for each step needed to finish the game
-    - Or plus points for finishing
-
-    # TODO: two phase: choose to stop or continue
-    # then choose action
+    - 100 for winning game
+    - 10 per complete column
+    - x^2 / 10 where x is steps advanced at end of turn
     """
     def __init__(self, n_players, verbose=False):
         self.n_players = n_players
@@ -291,6 +297,7 @@ class PlotsViewer():
         self.fig.show()
         self.fig.canvas.draw()
         self.colours = ['r', 'black', 'y', 'm']
+        # Pause graph at start for video
         plt.pause(3)
 
     def render(self, board, current_choices, phase, roll, current_player):
@@ -301,8 +308,8 @@ class PlotsViewer():
         complete = []
         complete_per_player = {}
 
-        # players fixed
-        # always plot current player last
+        # Players fixed
+        # Always plot current player last
         for player in [i for i in range(self.n_players)
                        if i != current_player] + [current_player]:
             complete_per_player[player] = 0
@@ -317,12 +324,12 @@ class PlotsViewer():
                             label='Player {}'.format(player),
                             color=self.colours[player])
 
-        # lines
+        # Vertical lines
         for x, lim in zip(self.x, self.lim):
             if x not in complete:
                 self.board.vlines(x, 0, lim, color='green', alpha=0.5)
 
-        # current player projected
+        # Current player projected
         y2 = [min(board[x][current_player] + current_choices.count(x), lim)
               for x, lim in zip(self.x, self.lim)]
         self.board.plot(self.x, y2, marker='x', linestyle='None',
@@ -330,7 +337,8 @@ class PlotsViewer():
                         color=self.colours[current_player])
 
         handles, labels = self.board.get_legend_handles_labels()
-        # sort both labels and handles by labels
+
+        # Sort both labels and handles by labels
         labels, handles = zip(*sorted(zip(labels, handles),
                               key=lambda t: t[0]))
         self.board.legend(handles, labels, loc=1)
@@ -356,6 +364,7 @@ class PlotsViewer():
             if complete_per_player[player] == 3:
                 end_game = True
         if end_game:
+            # Pause graph at end for video
             plt.pause(2)
         else:
             plt.pause(0.4)
